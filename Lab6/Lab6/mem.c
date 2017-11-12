@@ -129,7 +129,7 @@ static mem* get_prev(mem* start, mem* chunk){
 		if(start->next==chunk){
 			return start;
 		}
-		start = chunk->next;
+		start = start->next;
 	}
 	return NULL;
 }
