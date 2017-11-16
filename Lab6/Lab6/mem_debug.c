@@ -1,6 +1,5 @@
 #include "mem.h"
-void memalloc_debug_struct_info(FILE* f,
-	mem const* const address) {
+void memalloc_debug_struct_info(FILE* f, mem const* const address) {
 	size_t i;
 	fprintf(f,
 		"start: %p\nsize: %lu\nis_free: %d\n",

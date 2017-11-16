@@ -1,4 +1,5 @@
 #include "mem.h"
+#include <string.h>
 #define SIZE_OF_PAGE 4096
 
 static size_t page_round(size_t size){
@@ -10,7 +11,7 @@ static size_t page_round(size_t size){
 }
 
 void* heap_init(size_t initial_size){
-	void* first_chunk = mmap(HEAP_START, initial_size,
+	void* first_chunk = mmap(HEAP_START, page_round(initial_size),
 		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	mem* head = HEAP_START;
 	head->next = NULL;
@@ -41,8 +42,8 @@ static mem* enlarge_chunk(mem* chunk, size_t const query){
 	size_t enlarge_size = query - chunk->capacity;
 	size_t enlarge_real_size = page_round(enlarge_size);
 	mem* additional_chunk = NULL;
-	if(mmap(enlarge_start, enlarge_size,
-		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)!=MAP_FAILED){
+	if(mmap(enlarge_start, enlarge_real_size,
+		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE| MAP_FIXED, -1, 0)!=MAP_FAILED){
 		if(enlarge_real_size-enlarge_size>sizeof(mem)+DEBUG_FIRST_BYTES){
 			additional_chunk = (mem*)(enlarge_start + enlarge_size);
 			additional_chunk->capacity = enlarge_real_size - enlarge_size - sizeof(mem);
@@ -63,9 +64,9 @@ static mem* create_new_chunk(mem* last_chunk, size_t const query){
 	size_t allocated_real_size = page_round(new_size);
 	mem* new_chunk;
 	mem* additional_chank = NULL;
-	if((new_chunk =  mmap(new_address, new_size,
+	if((new_chunk =  mmap(new_address, allocated_real_size,
 		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0)) == MAP_FAILED &&
-		(new_chunk = mmap(NULL, new_size,
+		(new_chunk = mmap(NULL, allocated_real_size,
 			PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)) == MAP_FAILED){
 		return NULL;
 	}
@@ -82,9 +83,12 @@ static mem* create_new_chunk(mem* last_chunk, size_t const query){
 	return new_chunk;
 }
 
-void* _malloc(size_t query){
+void* malloc(size_t query){	
 	query = query<DEBUG_FIRST_BYTES?DEBUG_FIRST_BYTES:query;
 	mem* chunk = look_for_chunk(HEAP_START, query);
+	if(chunk==NULL){
+		heap_init(1);
+	}
 	mem* new = NULL;
 	if(chunk){
 		if(chunk->capacity-query<sizeof(mem)+DEBUG_FIRST_BYTES){
@@ -115,12 +119,14 @@ void* _malloc(size_t query){
 }
 
 static mem* get_chunk(mem* start, char* block){
-	while(start!=NULL){
-		if(start==(mem*)(block-sizeof(mem))){
-			return start;
+	if(block!=NULL){
+		while (start != NULL) {
+			if (start == (mem*)(block - sizeof(mem))) {
+				return start;
+			}
+			start = start->next;
 		}
-		start = start->next;
-	}
+	}	
 	return NULL;
 }
 
@@ -134,18 +140,36 @@ static mem* get_prev(mem* start, mem* chunk){
 	return NULL;
 }
 
-void _free(void* block){
+void free(void* block){
 	mem* chunk = get_chunk(HEAP_START, block);
 	mem* prev = get_prev(HEAP_START, chunk);
 	if(chunk){
 		chunk->is_free = 1;
-		if(chunk->next&&chunk->next->is_free){
+		/*if(chunk->next&&chunk->next->is_free){
 			chunk->capacity += chunk->next->capacity + sizeof(mem);
 			chunk->next = chunk->next->next;
 		}
 		if(prev&&prev->is_free){
 			prev->capacity += chunk->capacity + sizeof(mem);
 			prev->next = chunk->next;
-		}
+		}*/
 	}
+}
+
+void* realloc(void* ptr, const size_t new_size){
+	void* new_ptr = malloc(new_size);
+	if(ptr==NULL){
+		return new_ptr;
+	}
+	mem* mem_ptr = (mem*)ptr - 1;
+	if(new_size==0){
+		free(ptr);
+	}else if(mem_ptr->capacity<new_size){
+		memcpy(new_ptr, ptr, mem_ptr->capacity);
+		free(ptr);
+	}else{
+		memcpy(new_ptr, ptr, new_size);	
+		free(ptr);
+	}
+	return new_ptr;
 }

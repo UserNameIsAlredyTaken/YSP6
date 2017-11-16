@@ -16,6 +16,7 @@ typedef struct mem {
 void* _malloc(size_t query);
 void _free(void* mem);
 void* heap_init(size_t initial_size);
+void* realloc(void* ptr, const size_t new_size);
 #define DEBUG_FIRST_BYTES 4
 void memalloc_debug_struct_info(FILE* f,
 	struct mem const* const address);
