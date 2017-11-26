@@ -1,7 +1,12 @@
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <dlfcn.h>
+
 #include "mem.h"
 #include <string.h>
 #define SIZE_OF_PAGE 4096
 
+static int heap_initialized = 0;
 static size_t page_round(size_t size){
 	if (size%SIZE_OF_PAGE) {
 		return size + (SIZE_OF_PAGE - size%SIZE_OF_PAGE);
@@ -17,6 +22,7 @@ void* heap_init(size_t initial_size){
 	head->next = NULL;
 	head->capacity = page_round(initial_size) - sizeof(mem);	
 	head->is_free = 1;
+	heap_initialized = 1;
 	return first_chunk + sizeof(mem);
 }
 
@@ -70,7 +76,7 @@ static mem* create_new_chunk(mem* last_chunk, size_t const query){
 			PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)) == MAP_FAILED){
 		return NULL;
 	}
-	if(allocated_real_size- new_size>sizeof(mem)+DEBUG_FIRST_BYTES){
+	if(allocated_real_size - new_size>sizeof(mem)+DEBUG_FIRST_BYTES){
 		additional_chank = (mem*)(new_address + new_size);
 		additional_chank->capacity = allocated_real_size - new_size - sizeof(mem);
 		additional_chank->is_free = 1;
@@ -83,12 +89,15 @@ static mem* create_new_chunk(mem* last_chunk, size_t const query){
 	return new_chunk;
 }
 
-void* malloc(size_t query){	
-	query = query<DEBUG_FIRST_BYTES?DEBUG_FIRST_BYTES:query;
-	mem* chunk = look_for_chunk(HEAP_START, query);
-	if(chunk==NULL){
-		heap_init(1);
+void* malloc(size_t query){
+	if(query==0){
+		return NULL;
 	}
+	if(!heap_initialized){
+		heap_init(query);
+	}
+	query = query<DEBUG_FIRST_BYTES ? DEBUG_FIRST_BYTES : query;
+	mem* chunk = look_for_chunk(HEAP_START, query);	
 	mem* new = NULL;
 	if(chunk){
 		if(chunk->capacity-query<sizeof(mem)+DEBUG_FIRST_BYTES){
@@ -131,6 +140,9 @@ static mem* get_chunk(mem* start, char* block){
 }
 
 static mem* get_prev(mem* start, mem* chunk){
+	if(chunk ==NULL){
+		return NULL;
+	}
 	while(start!=NULL){
 		if(start->next==chunk){
 			return start;
@@ -140,11 +152,20 @@ static mem* get_prev(mem* start, mem* chunk){
 	return NULL;
 }
 
+//static void (*free_ptr)(void* b) = NULL;
 void free(void* block){
+	
+	
+	/*free_ptr = dlsym(RTLD_NEXT, "free");
+	return free_ptr(block);*/
+	
+	
+	
 	mem* chunk = get_chunk(HEAP_START, block);
-	mem* prev = get_prev(HEAP_START, chunk);
+	//mem* prev = get_prev(HEAP_START, chunk);
 	if(chunk){
 		chunk->is_free = 1;
+		//munmap(block,chunk->capacity+sizeof(mem));
 		/*if(chunk->next&&chunk->next->is_free){
 			chunk->capacity += chunk->next->capacity + sizeof(mem);
 			chunk->next = chunk->next->next;

@@ -9,9 +9,12 @@ mem_debug.o: mem_debug.c
 clean:
 	rm main.o mem.o mem_debug.o lab6 libmem.so
 libmem.so:
-	gcc -shared -fPIC -g -o libmem.so mem.c
+	#gcc  -shared -fPIC -g -o  libmem.so mem.c
+	gcc -shared -fPIC -ldl -O2 -o libmem.so mem.c /lib/x86_64-linux-gnu/libdl-2.23.so
 ddfile:
-	dd if=/dev/random of=ddfile bs=512 count=200000
+	dd if=/dev/zero of=ddfile bs=512 count=200000
 gzip:
-	LD_PRELOAD=./libmem.so gzip ddfile
+	LD_PRELOAD=./libmem.so gzip -k ddfile	
+gunzip:
+	LD_PRELOAD=./libmem.so gunzip -k ddfile.gz
 	

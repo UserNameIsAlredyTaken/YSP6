@@ -6,13 +6,13 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #define HEAP_START ((void*)0x04040000)
-#pragma pack(push, 1)
+//#pragma pack(push, 1)
 typedef struct mem {
-	struct mem* next;
+	struct  mem* next;
 	size_t capacity;
 	int is_free;
 }mem;
-#pragma pack(pop)
+//#pragma pack(pop)
 void* _malloc(size_t query);
 void _free(void* mem);
 void* heap_init(size_t initial_size);
