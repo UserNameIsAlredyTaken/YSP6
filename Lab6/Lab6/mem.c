@@ -70,12 +70,22 @@ static mem* create_new_chunk(mem* last_chunk, size_t const query){
 	size_t allocated_real_size = page_round(new_size);
 	mem* new_chunk;
 	mem* additional_chank = NULL;
-	if((new_chunk =  mmap(new_address, allocated_real_size,
+	/*if((new_chunk = mmap(new_address, allocated_real_size,
 		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0)) == MAP_FAILED &&
 		(new_chunk = mmap(NULL, allocated_real_size,
 			PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)) == MAP_FAILED){
 		return NULL;
+	}*/
+	new_chunk = mmap(new_address, allocated_real_size,
+		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+	if (new_address == MAP_FAILED) {
+		new_chunk = mmap(NULL, allocated_real_size,
+			PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+			if (new_address == MAP_FAILED) {
+				return NULL;
+			}
 	}
+
 	if(allocated_real_size - new_size>sizeof(mem)+DEBUG_FIRST_BYTES){
 		additional_chank = (mem*)(new_address + new_size);
 		additional_chank->capacity = allocated_real_size - new_size - sizeof(mem);
